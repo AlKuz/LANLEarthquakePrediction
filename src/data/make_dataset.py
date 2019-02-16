@@ -1,30 +1,32 @@
-# -*- coding: utf-8 -*-
-import click
-import logging
-from pathlib import Path
-from dotenv import find_dotenv, load_dotenv
+"""
+Making dataset
+"""
+
+import pandas as pd
+import numpy as np
+import pickle
+import random
+import string
 
 
-@click.command()
-@click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path())
-def main(input_filepath, output_filepath):
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
-    """
-    logger = logging.getLogger(__name__)
-    logger.info('making final data set from raw data')
+def generate_data(data_path, path_to_save, timesteps_to_generate, seed=13):
+    random.seed(a=seed)
+    for chunk in pd.read_csv(data_path, chunksize=timesteps_to_generate):
+        data: np.ndarray = chunk.values
+        timeseries = (data[:, 0]).astype('int16')
+        time = (data[-1, 1]).astype('float32')
+        data_dict = {
+            'timeseries': timeseries,
+            'time': time
+        }
+        filename = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16)) + '.pkl'
+        with open(path_to_save + filename, 'wb') as f:
+            pickle.dump(data_dict, f)
 
 
-if __name__ == '__main__':
-    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
+if __name__ == "__main__":
+    TRAIN_DATA_PATH = "data/raw/train.csv"
+    RESULT_DATA_FOLDER = "data/processed/"
 
-    # not used in this stub but often useful for finding various files
-    project_dir = Path(__file__).resolve().parents[2]
-
-    # find .env automagically by walking up directories until it's found, then
-    # load up the .env entries as environment variables
-    load_dotenv(find_dotenv())
-
-    main()
+    timesteps = 150000
+    generate_data(TRAIN_DATA_PATH, RESULT_DATA_FOLDER, timesteps_to_generate=timesteps)
