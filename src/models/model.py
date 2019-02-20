@@ -30,7 +30,7 @@ class Model(ABC):
     def save_model(self, models_folder: str, model_name: str):
         raise Exception("Realize method")
 
-    def train(self, train_data: dict, valid_data: dict, batch_size=32, epochs=1000):
+    def train(self, train_data: dict, valid_data: dict, batch_size=1, epochs=1000):
 
         train_keys_list = list(train_data.keys())
         valid_keys_list = list(valid_data.keys())
@@ -60,7 +60,7 @@ class Model(ABC):
             self._train_mae_log.append(train_mae)
             self._valid_mae_log.append(valid_mae)
 
-            print("Epoch {} / {}: train_mae = {.4f}, valid_mae = {.4f}".format(e, epochs, train_mae, valid_mae))
+            print("Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae))
 
     @abstractmethod
     def _create_model(self, params):

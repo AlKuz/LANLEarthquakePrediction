@@ -9,14 +9,14 @@ class ModelConfigurator(object):
     def lgbm_regressor(cls) -> (Model, str):
         params = {
             'num_leaves': 54,
-            'min_data_in_leaf': 79,
+            #'min_data_in_leaf': 79,
             'objective': 'huber',
             'max_depth': -1,
             'learning_rate': 0.01,
-            "boosting": "gbdt",
+            #"boosting": "gbdt",
             # "feature_fraction": 0.8354507676881442,
-            "bagging_freq": 3,
-            "bagging_fraction": 0.8126672064208567,
+            #"bagging_freq": 3,
+            #"bagging_fraction": 0.8126672064208567,
             "bagging_seed": 11,
             "metric": 'mae',
             "verbosity": -1,
