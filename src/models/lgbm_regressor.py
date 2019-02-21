@@ -4,7 +4,6 @@ LGBM regressor
 from numpy import ndarray, min, max, mean, var, std, quantile, concatenate
 import lightgbm as lgb
 import pickle
-import os
 
 from src.models.model import Model
 
@@ -54,7 +53,7 @@ class LGBMRegressor(Model):
             )
         return concatenate(statistic_params_list, axis=1)
 
-    def save_model(self, models_folder: str, model_name: str):
-        with open(os.path.join(models_folder, model_name), 'wb') as f:
+    def save_model(self, model_path: str):
+        with open(model_path, 'wb') as f:
             pickle.dump(self._model, f)
         # TODO (kuznetsovav) Записывать вместе с моделью файл с логами и параметрами

@@ -1,4 +1,4 @@
-from src.models import Model, LGBMRegressor
+from src.models import Model, LGBMRegressor, ConvolutionModel
 import pickle
 
 
@@ -23,7 +23,18 @@ class ModelConfigurator(object):
             'reg_alpha': 1.1302650970728192,
             'reg_lambda': 0.3603427518866501
         }
-        return LGBMRegressor(params), 'lgbm_regressor'
+        return LGBMRegressor(params), 'lgbm_regressor.pkl'
+
+    @classmethod
+    def convolution(cls) -> (Model, str):
+        params = {
+            'input_size': 150000,
+            'filters': (2, 4, 8, 16, 32, 64, 32, 16, 8, 4, 2, 1),
+            'kernels': (7, 7, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3),
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.001}
+        }
+        return ConvolutionModel(params), 'convolution_model.hdf5'
 
 
 if __name__ == "__main__":
@@ -33,6 +44,7 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 32
     EPOCHS = 1000
+    EARLY_STOP = 50
 
     with open(TRAIN_DATA, 'rb') as f:
         train_data = pickle.load(f)
@@ -40,6 +52,5 @@ if __name__ == "__main__":
     with open(VALID_DATA, 'rb') as f:
         valid_data = pickle.load(f)
 
-    model, name = ModelConfigurator.lgbm_regressor()
-    model.train(train_data, valid_data, BATCH_SIZE, EPOCHS)
-    model.save_model(MODELS_FOLDER, name)
+    model, name = ModelConfigurator.convolution()
+    model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, EARLY_STOP)

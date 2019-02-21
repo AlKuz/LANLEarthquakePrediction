@@ -15,10 +15,6 @@ class Model(ABC):
         self._params = params
         self._model = None
         self._create_model(params)
-        self._best_model = None
-
-        self._train_mae_log = []
-        self._valid_mae_log = []
 
         random.seed(seed)
 
@@ -27,15 +23,16 @@ class Model(ABC):
         raise Exception("Realize method")
 
     @abstractmethod
-    def save_model(self, models_folder: str, model_name: str) -> None:
+    def save_model(self, model_path: str) -> None:
         raise Exception("Realize method")
 
-    def train(self, train_data: dict, valid_data: dict, batch_size=1, epochs=1000) -> None:
+    def train(self, train_data: dict, valid_data: dict, model_path: str, batch_size=1, epochs=1000, early_stop=10):
 
         train_keys_list = list(train_data.keys())
         valid_keys_list = list(valid_data.keys())
 
         best_mae = None
+        best_epoch = 1
 
         for e in range(1, epochs+1):
 
@@ -52,15 +49,16 @@ class Model(ABC):
 
             try:
                 if valid_mae < best_mae:
-                    self._remember_best_model()
+                    self.save_model(model_path)
                     best_mae = valid_mae
+                    best_epoch = e
             except:
                 best_mae = valid_mae
 
-            self._train_mae_log.append(train_mae)
-            self._valid_mae_log.append(valid_mae)
-
             print("Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae))
+
+            if e - best_epoch >= early_stop:
+                break
 
     @abstractmethod
     def _create_model(self, params) -> None:
@@ -69,13 +67,6 @@ class Model(ABC):
     @abstractmethod
     def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
         raise Exception("Realize method")
-
-    def _remember_best_model(self):
-        self._best_model = deepcopy(self._model)
-
-    def _restore_best_model(self):
-        self._model = deepcopy(self._best_model)
-        self._best_model = None
 
     @classmethod
     def _create_batch(cls, data_list: list, data_dict: dict) -> (ndarray, ndarray):
