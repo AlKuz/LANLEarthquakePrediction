@@ -2,8 +2,7 @@
 Abstract model class
 """
 from abc import ABC, abstractmethod
-from copy import deepcopy
-from numpy import ndarray, random, array, mean, abs
+from numpy import ndarray, random, array, abs, concatenate, min, max, mean, var, std, quantile
 
 
 class Model(ABC):
@@ -86,4 +85,27 @@ class Model(ABC):
     @classmethod
     def _calculate_mae(cls, output: ndarray, target: ndarray) -> float:
         return float(mean(abs(target - output)))
+
+    @classmethod
+    def _extract_features(cls, data: ndarray, num_parts=10) -> ndarray:
+        calc_statistics = lambda d: concatenate([
+            min(d, axis=1, keepdims=True),
+            max(d, axis=1, keepdims=True),
+            mean(d, axis=1, keepdims=True),
+            var(d, axis=1, keepdims=True),
+            std(d, axis=1, keepdims=True),
+            quantile(d, 0.25, axis=1, keepdims=True),
+            quantile(d, 0.5, axis=1, keepdims=True),
+            quantile(d, 0.75, axis=1, keepdims=True)
+        ], axis=1)
+
+        statistic_params_list = []
+        statistic_params_list.append(calc_statistics(data))
+
+        step = data.shape[1] // num_parts
+        for i in range(num_parts):
+            statistic_params_list.append(
+                calc_statistics(data[:, i*step:(i+1)*step])
+            )
+        return concatenate(statistic_params_list, axis=1)
 
