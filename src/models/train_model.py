@@ -1,4 +1,4 @@
-from src.models import Model, LGBMRegressor, ConvolutionModel
+from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel
 import pickle
 
 
@@ -36,17 +36,30 @@ class ModelConfigurator(object):
         }
         return ConvolutionModel(params), 'convolution_model.hdf5'
 
+    @classmethod
+    def dense_model(cls):
+        params = {
+            'num_feature_parts': 20,
+            'layers': (256, 128),
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.001}
+        }
+        return DenseModel(params), 'dense_model_nfp-{nfp}_l-{layers}.hdf5'.format(
+            nfp=params['num_feature_parts'],
+            layers='-'.join(map(lambda x: str(x), params['layers']))
+        )
+
 
 if __name__ == "__main__":
     MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models/"
     TRAIN_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/train.pkl"
     VALID_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/validation.pkl"
 
-    BATCH_SIZE = 256
+    BATCH_SIZE = 64
     EPOCHS = 1000
-    TRAIN_REPETITIONS = 100
+    TRAIN_REPETITIONS = 50
     VALID_REPETITIONS = 10
-    EARLY_STOP = 50
+    EARLY_STOP = 100
 
     with open(TRAIN_DATA, 'rb') as f:
         train_data = pickle.load(f)
@@ -54,5 +67,5 @@ if __name__ == "__main__":
     with open(VALID_DATA, 'rb') as f:
         valid_data = pickle.load(f)
 
-    model, name = ModelConfigurator.convolution()
+    model, name = ModelConfigurator.dense_model()
     model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, TRAIN_REPETITIONS, VALID_REPETITIONS, EARLY_STOP)
