@@ -2,7 +2,7 @@
 Abstract model class
 """
 from abc import ABC, abstractmethod
-from numpy import ndarray, random, array, abs, concatenate, min, max, mean, var, std, quantile
+from numpy import ndarray, random, array, abs, concatenate, min, max, mean, var, std, quantile, expand_dims
 
 
 class Model(ABC):
@@ -87,7 +87,7 @@ class Model(ABC):
         return float(mean(abs(target - output)))
 
     @classmethod
-    def _extract_features(cls, data: ndarray, num_parts=10) -> ndarray:
+    def _extract_features(cls, data: ndarray, num_parts=10, as_filters=False) -> ndarray:
         calc_statistics = lambda d: concatenate([
             min(d, axis=1, keepdims=True),
             max(d, axis=1, keepdims=True),
@@ -100,12 +100,13 @@ class Model(ABC):
         ], axis=1)
 
         statistic_params_list = []
-        statistic_params_list.append(calc_statistics(data))
 
         step = data.shape[1] // num_parts
         for i in range(num_parts):
-            statistic_params_list.append(
-                calc_statistics(data[:, i*step:(i+1)*step])
-            )
+            features = calc_statistics(data[:, i*step:(i+1)*step])
+            if as_filters:
+                features = expand_dims(features, axis=1)
+            statistic_params_list.append(features)
+
         return concatenate(statistic_params_list, axis=1)
 
