@@ -29,21 +29,23 @@ class ModelConfigurator(object):
     def convolution(cls) -> (Model, str):
         params = {
             'input_size': 150000,
-            'filters': (2, 4, 8, 16, 32, 64, 32, 16, 8, 4, 2, 1),
-            'kernels': (7, 7, 5, 5, 5, 5, 3, 3, 3, 3, 3, 3),
+            'filters': (2, 2, 4, 4, 8, 8, 16, 16, 32, 32, 64, 64),
+            'kernels': (21, 13, 13, 7, 7, 7, 7, 5, 5, 5, 5, 5),
             'optimizer': 'Adam',
-            'optimizer_params': {'lr': 0.001}
+            'optimizer_params': {'lr': 0.0005}
         }
         return ConvolutionModel(params), 'convolution_model.hdf5'
 
 
 if __name__ == "__main__":
-    MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models"
+    MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models/"
     TRAIN_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/train.pkl"
     VALID_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/validation.pkl"
 
-    BATCH_SIZE = 32
+    BATCH_SIZE = 256
     EPOCHS = 1000
+    TRAIN_REPETITIONS = 100
+    VALID_REPETITIONS = 10
     EARLY_STOP = 50
 
     with open(TRAIN_DATA, 'rb') as f:
@@ -53,4 +55,4 @@ if __name__ == "__main__":
         valid_data = pickle.load(f)
 
     model, name = ModelConfigurator.convolution()
-    model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, EARLY_STOP)
+    model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, TRAIN_REPETITIONS, VALID_REPETITIONS, EARLY_STOP)
