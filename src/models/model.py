@@ -26,7 +26,8 @@ class Model(ABC):
     def save_model(self, model_path: str) -> None:
         raise Exception("Realize method")
 
-    def train(self, train_data: dict, valid_data: dict, model_path: str, batch_size=1, epochs=1000, early_stop=10):
+    def train(self, train_data: dict, valid_data: dict, model_path: str, batch_size=1, epochs=1000,
+              train_repetitions=100, valid_repetitions=10, early_stop=10):
 
         train_keys_list = list(train_data.keys())
         valid_keys_list = list(valid_data.keys())
@@ -36,16 +37,20 @@ class Model(ABC):
 
         for e in range(1, epochs+1):
 
-            train_data_list = random.choice(train_keys_list, size=batch_size, replace=False)
-            valid_data_list = random.choice(valid_keys_list, size=batch_size, replace=False)
+            train_mae = None
+            for _ in range(train_repetitions):
+                train_data_list = random.choice(train_keys_list, size=batch_size, replace=False)
+                train_batch_x, train_batch_y = self._create_batch(train_data_list, train_data)
+                train_mae = self._fit_batch(train_batch_x, train_batch_y)
 
-            train_batch_x, train_batch_y = self._create_batch(train_data_list, train_data)
-            valid_batch_x, valid_batch_y = self._create_batch(valid_data_list, valid_data)
-
-            train_mae = self._fit_batch(train_batch_x, train_batch_y)
-
-            model_result = self.predict(valid_batch_x)
-            valid_mae = self._calculate_mae(model_result, valid_batch_y)
+            sum_valid_mae = 0
+            for _ in range(valid_repetitions):
+                valid_data_list = random.choice(valid_keys_list, size=batch_size, replace=False)
+                valid_batch_x, valid_batch_y = self._create_batch(valid_data_list, valid_data)
+                model_result = self.predict(valid_batch_x)
+                valid_mae = self._calculate_mae(model_result, valid_batch_y)
+                sum_valid_mae += valid_mae
+            valid_mae = sum_valid_mae / valid_repetitions
 
             try:
                 if valid_mae < best_mae:
