@@ -1,4 +1,4 @@
-from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel
+from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel, RNNModel
 import pickle
 
 
@@ -49,6 +49,21 @@ class ModelConfigurator(object):
             layers='-'.join(map(lambda x: str(x), params['layers']))
         )
 
+    @classmethod
+    def rnn_model(cls):
+        params = {
+            'timesteps': 100,
+            'layers': (64, 128),
+            'layer_types': ('LSTM', 'GRU'),
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.001}
+        }
+        return RNNModel(params), 'rnn_model_t-{timesteps}_l-{layers}_ltypes-{ltypes}.hdf5'.format(
+            timesteps=params['timesteps'],
+            layers='-'.join(map(lambda x: str(x), params['layers'])),
+            ltypes='-'.join(params['layer_types'])
+        )
+
 
 if __name__ == "__main__":
     MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models/"
@@ -67,5 +82,5 @@ if __name__ == "__main__":
     with open(VALID_DATA, 'rb') as f:
         valid_data = pickle.load(f)
 
-    model, name = ModelConfigurator.dense_model()
+    model, name = ModelConfigurator.rnn_model()
     model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, TRAIN_REPETITIONS, VALID_REPETITIONS, EARLY_STOP)

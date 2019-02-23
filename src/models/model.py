@@ -84,7 +84,12 @@ class Model(ABC):
 
     @classmethod
     def _calculate_mae(cls, output: ndarray, target: ndarray) -> float:
-        return float(mean(abs(target - output)))
+        if len(target.shape) == 1:
+            target = expand_dims(target, axis=-1)
+        error = target - output
+        error = abs(error)
+        error = mean(error)
+        return float(error)
 
     @classmethod
     def _extract_features(cls, data: ndarray, num_parts=10, as_filters=False) -> ndarray:
