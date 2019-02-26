@@ -32,7 +32,7 @@ class DenseModel(Model):
         else:
             raise Exception("Unknown optimizer")
 
-        input_tensor = Input(shape=((self._num_parts+1)*8,))
+        input_tensor = Input(shape=(self._num_parts*8,))
         model = input_tensor
         for depth in layers:
             model = Dense(depth, activation='tanh', kernel_initializer='glorot_normal')(model)
