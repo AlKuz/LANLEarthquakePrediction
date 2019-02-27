@@ -20,18 +20,13 @@ class ConvolutionModel(Model):
         self._model.save(model_path)
 
     def _create_model(self, params: dict) -> None:
-        for p in ['input_size', 'filters', 'kernels', 'optimizer', 'optimizer_params']:
-            assert p in params, "There is no {} in the dictionary parameters".format(p)
 
         input_size = params['input_size']
-        assert isinstance(input_size, int)
         filters = params['filters']
-        assert isinstance(filters, tuple)
         kernels = params['kernels']
-        assert isinstance(kernels, tuple)
-        assert len(filters) == len(kernels)
         optimizer = params['optimizer']
         optimizer_params = params['optimizer_params']
+
         if optimizer == 'Adam':
             optimizer = Adam
         elif optimizer == 'SGD':

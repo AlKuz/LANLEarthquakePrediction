@@ -19,7 +19,7 @@ class Model(ABC):
         self._model_folder = folder
 
         random.seed(seed)
-        with open(self._model_folder + self._name + '_info.txt', 'w') as file:
+        with open(self._model_folder + self._name + '.info', 'w') as file:
             self._model.summary(print_fn=lambda x: file.write(x + '\n'))
             file.write('\n\n\n')
 
@@ -67,7 +67,7 @@ class Model(ABC):
 
             to_print = "Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae)
             print(to_print)
-            with open(self._model_folder + self._name + '_info.txt', 'a') as file:
+            with open(self._model_folder + self._name + '.info', 'a') as file:
                 file.write(to_print + '\n')
 
             if e - best_epoch >= early_stop:
