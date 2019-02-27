@@ -10,12 +10,18 @@ class Model(ABC):
     Abstract class for all models
     """
 
-    def __init__(self, params: dict, seed=13):
+    def __init__(self, params: dict, folder, name, seed=13):
         self._params = params
         self._model = None
         self._create_model(params)
+        print("Model was created")
+        self._name = name
+        self._model_folder = folder
 
         random.seed(seed)
+        with open(self._model_folder + self._name + '_info.txt', 'w') as file:
+            self._model.summary(print_fn=lambda x: file.write(x + '\n'))
+            file.write('\n\n\n')
 
     @abstractmethod
     def predict(self, input_data: ndarray) -> ndarray:
@@ -25,7 +31,7 @@ class Model(ABC):
     def save_model(self, model_path: str) -> None:
         raise Exception("Realize method")
 
-    def train(self, train_data: dict, valid_data: dict, model_path: str, batch_size=1, epochs=1000,
+    def train(self, train_data: dict, valid_data: dict, batch_size=1, epochs=1000,
               train_repetitions=100, valid_repetitions=10, early_stop=10):
 
         train_keys_list = list(train_data.keys())
@@ -36,7 +42,7 @@ class Model(ABC):
 
         for e in range(1, epochs+1):
 
-            train_mae = None
+            train_mae = 0
             for _ in range(train_repetitions):
                 train_data_list = random.choice(train_keys_list, size=batch_size, replace=False)
                 train_batch_x, train_batch_y = self._create_batch(train_data_list, train_data)
@@ -53,13 +59,16 @@ class Model(ABC):
 
             try:
                 if valid_mae < best_mae:
-                    self.save_model(model_path)
+                    self.save_model(self._model_folder + self._name + '.hdf5')
                     best_mae = valid_mae
                     best_epoch = e
             except:
                 best_mae = valid_mae
 
-            print("Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae))
+            to_print = "Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae)
+            print(to_print)
+            with open(self._model_folder + self._name + '_info.txt', 'a') as file:
+                file.write(to_print + '\n')
 
             if e - best_epoch >= early_stop:
                 break

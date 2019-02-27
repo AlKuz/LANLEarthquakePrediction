@@ -1,5 +1,6 @@
-from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel, RNNModel
+from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel, RNNModel, ConvolutionRNNModel
 import pickle
+import json
 
 
 class ModelConfigurator(object):
@@ -26,15 +27,16 @@ class ModelConfigurator(object):
         return LGBMRegressor(params), 'lgbm_regressor.pkl'
 
     @classmethod
-    def convolution(cls) -> (Model, str):
+    def convolution(cls, folder) -> (Model, str):
         params = {
             'input_size': 150000,
-            'filters': (2, 2, 4, 4, 8, 8, 16, 16, 32, 32, 64, 64),
-            'kernels': (21, 13, 13, 7, 7, 7, 7, 5, 5, 5, 5, 5),
+            'filters': (8, 8, 16, 16, 32, 32, 64, 64, 128, 128, 256, 256),
+            'kernels': (7, 7, 7, 7, 5, 5, 5, 5, 3, 3, 3, 3),
             'optimizer': 'Adam',
-            'optimizer_params': {'lr': 0.0005}
+            'optimizer_params': {'lr': 0.001}
         }
-        return ConvolutionModel(params), 'convolution_model.hdf5'
+        name = 'convolution_model'
+        return ConvolutionModel(params, folder, name), name, params
 
     @classmethod
     def dense_model(cls):
@@ -64,6 +66,20 @@ class ModelConfigurator(object):
             ltypes='-'.join(params['layer_types'])
         )
 
+    @classmethod
+    def conv_rnn_model(cls, folder):
+        params = {
+            'input_size': 150000,
+            'filters': (8, 16, 32, 64, 128, 256),
+            'kernels': (3, 3, 3, 3, 3, 3),
+            'rnn_types': ('GRU', 'GRU'),
+            'rnn_layers': (256, 256),
+            'optimizer': 'SGD',
+            'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True}
+        }
+        name = 'conv_rnn_model'
+        return ConvolutionRNNModel(params, folder, name), name, params
+
 
 if __name__ == "__main__":
     MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models/"
@@ -72,15 +88,26 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 64
     EPOCHS = 1000
-    TRAIN_REPETITIONS = 50
+    TRAIN_REPETITIONS = 100
     VALID_REPETITIONS = 10
     EARLY_STOP = 100
 
+    print("Loading data...")
     with open(TRAIN_DATA, 'rb') as f:
         train_data = pickle.load(f)
 
     with open(VALID_DATA, 'rb') as f:
         valid_data = pickle.load(f)
+    print("Data was loaded")
 
-    model, name = ModelConfigurator.rnn_model()
-    model.train(train_data, valid_data, MODELS_FOLDER+name, BATCH_SIZE, EPOCHS, TRAIN_REPETITIONS, VALID_REPETITIONS, EARLY_STOP)
+    model, name, params = ModelConfigurator.convolution(MODELS_FOLDER)
+    with open(MODELS_FOLDER + name + '.json', 'w') as file:
+        json.dump(params, file)
+
+    model.train(train_data,
+                valid_data,
+                BATCH_SIZE,
+                EPOCHS,
+                TRAIN_REPETITIONS,
+                VALID_REPETITIONS,
+                EARLY_STOP)
