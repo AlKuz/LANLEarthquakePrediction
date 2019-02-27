@@ -69,11 +69,11 @@ class ModelConfigurator(object):
     @classmethod
     def conv_rnn_model(cls, folder):
         params = {
-            'input_size': 150000,
-            'filters': (8, 16, 32, 64, 128, 256),
-            'kernels': (3, 3, 3, 3, 3, 3),
+            'timesteps': 150,
+            'filters': (32, 64),
+            'kernels': (3, 3),
             'rnn_types': ('GRU', 'GRU'),
-            'rnn_layers': (256, 256),
+            'rnn_layers': (64, 64),
             'optimizer': 'SGD',
             'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True}
         }

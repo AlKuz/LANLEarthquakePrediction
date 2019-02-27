@@ -15,9 +15,8 @@ class ConvolutionRNNModel(Model):
         super().__init__(params, folder, name, seed)
 
     def predict(self, input_data: ndarray) -> ndarray:
-        if len(input_data.shape) == 2:
-            input_data = expand_dims(input_data, axis=-1)
-        return self._model.predict(input_data)
+        features = self._extract_features(input_data, num_parts=self._timesteps, as_filters=True)
+        return self._model.predict(features)
 
     def save_model(self, model_path: str):
         self._model.save(model_path)
@@ -28,7 +27,7 @@ class ConvolutionRNNModel(Model):
             'GRU': GRU
         }
 
-        input_size = params['input_size']
+        self._timesteps = params['timesteps']
         filters = params['filters']
         kernels = params['kernels']
         rnn_layer_types = params['rnn_types']
@@ -43,7 +42,7 @@ class ConvolutionRNNModel(Model):
         else:
             raise Exception("Unknown optimizer")
 
-        input_tensor = Input(shape=(input_size, 1))
+        input_tensor = Input(shape=(self._timesteps, 8))
         model = input_tensor
         for filter, kernel in zip(filters, kernels):
             model = Conv1D(filter, kernel, padding='same', activation='relu')(model)
@@ -65,6 +64,5 @@ class ConvolutionRNNModel(Model):
         self._model.compile(optimizer=optimizer(**optimizer_params), loss='mae')
 
     def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
-        if len(train_x.shape) == 2:
-            train_x = expand_dims(train_x, axis=-1)
-        return self._model.train_on_batch(train_x, train_y)
+        features = self._extract_features(train_x, num_parts=self._timesteps, as_filters=True)
+        return self._model.train_on_batch(features, train_y)
