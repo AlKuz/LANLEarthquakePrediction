@@ -1,4 +1,4 @@
-from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel, RNNModel, ConvolutionRNNModel
+from src.models import Model, LGBMRegressor, ConvolutionModel, DenseModel, RNNModel, ConvolutionRNNModel, Squeeze1DNetModel
 import pickle
 import json
 
@@ -67,6 +67,18 @@ class ModelConfigurator(object):
         )
 
     @classmethod
+    def squeeze_1d_model(cls, folder) -> (Model, str):
+        params = {
+            'timesteps': 150,
+            'filters': (32, 64, 128, 256),
+            'kernels': (5, 5, 3, 3),
+            'optimizer': 'SGD',
+            'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True}
+        }
+        name = 'squeeze_1d_model'
+        return Squeeze1DNetModel(params, folder, name), name, params
+
+    @classmethod
     def conv_rnn_model(cls, folder):
         params = {
             'timesteps': 150,
@@ -100,7 +112,7 @@ if __name__ == "__main__":
         valid_data = pickle.load(f)
     print("Data was loaded")
 
-    model, name, params = ModelConfigurator.convolution(MODELS_FOLDER)
+    model, name, params = ModelConfigurator.squeeze_1d_model(MODELS_FOLDER)
     with open(MODELS_FOLDER + name + '.json', 'w') as file:
         json.dump(params, file)
 
