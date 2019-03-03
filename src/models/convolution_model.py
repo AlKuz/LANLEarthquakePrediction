@@ -4,7 +4,8 @@ Convolution model
 from keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
-from numpy import ndarray, expand_dims
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from numpy import ndarray
 
 from src.models.model import Model
 
@@ -12,29 +13,26 @@ from src.models.model import Model
 class ConvolutionModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        if len(input_data.shape) == 2:
-            input_data = expand_dims(input_data, axis=-1)
-        return self._model.predict(input_data)
+        features = self._extract_features(input_data, num_parts=self._params['timesteps'], as_filters=True)
+        return self._model.predict(features)
 
     def save_model(self, model_path: str):
         self._model.save(model_path)
 
-    def _create_model(self, params: dict) -> None:
+    def _create_model(self) -> None:
 
-        input_size = params['input_size']
-        filters = params['filters']
-        kernels = params['kernels']
-        optimizer = params['optimizer']
-        optimizer_params = params['optimizer_params']
+        optimizer_dict = {
+            'Adam': Adam,
+            'SGD': SGD
+        }
 
-        if optimizer == 'Adam':
-            optimizer = Adam
-        elif optimizer == 'SGD':
-            optimizer = SGD
-        else:
-            raise Exception("Unknown optimizer")
+        timesteps = self._params['timesteps']
+        filters = self._params['filters']
+        kernels = self._params['kernels']
+        optimizer = optimizer_dict[self._params['optimizer']]
+        optimizer_params = self._params['optimizer_params']
 
-        input_tensor = Input(shape=(input_size, 1))
+        input_tensor = Input(shape=(timesteps, 8))
         model = input_tensor
         for filter, kernel in zip(filters, kernels):
             model = Conv1D(filter, kernel, padding='same', activation='relu')(model)
@@ -46,7 +44,37 @@ class ConvolutionModel(Model):
 
         self._model.compile(optimizer=optimizer(**optimizer_params), loss='mae')
 
-    def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
-        if len(train_x.shape) == 2:
-            train_x = expand_dims(train_x, axis=-1)
-        return self._model.train_on_batch(train_x, train_y)
+    def train(self, train_data: dict, valid_data: dict):
+
+        batch_size = self._params['batch_size']
+        epochs = self._params['epochs']
+        train_repetitions = self._params['train_repetitions']
+        valid_repetitions = self._params['valid_repetitions']
+        early_stop = self._params['early_stop']
+
+        feature_extractor = lambda x: self._extract_features(x, self._params['timesteps'], as_filters=True)
+
+        callback_list = [
+            ModelCheckpoint(
+                filepath=self._model_folder + self._name + '.hdf5',
+                monitor='val_loss',
+                save_best_only=True
+            ),
+            EarlyStopping(
+                monitor='val_loss',
+                patience=early_stop
+            ),
+            CSVLogger(
+                filename=self._model_folder + self._name + '.info',
+                append=True
+            )
+        ]
+
+        self._model.fit_generator(
+            self._data_generator(train_data, batch_size, feature_extractor),
+            steps_per_epoch=train_repetitions,
+            epochs=epochs,
+            callbacks=callback_list,
+            validation_data=self._data_generator(valid_data, batch_size, feature_extractor),
+            validation_steps=valid_repetitions
+        )

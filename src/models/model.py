@@ -2,7 +2,9 @@
 Abstract model class
 """
 from abc import ABC, abstractmethod
-from numpy import ndarray, random, array, abs, concatenate, min, max, mean, var, std, quantile, expand_dims
+import numpy as np
+import json
+from scipy import interpolate
 
 
 class Model(ABC):
@@ -13,114 +15,90 @@ class Model(ABC):
     def __init__(self, params: dict, folder, name, seed=13):
         self._params = params
         self._model = None
-        self._create_model(params)
+        self._create_model()
         print("Model was created")
         self._name = name
         self._model_folder = folder
 
-        random.seed(seed)
+        np.random.seed(seed)
         with open(self._model_folder + self._name + '.info', 'w') as file:
             self._model.summary(print_fn=lambda x: file.write(x + '\n'))
             file.write('\n\n\n')
+            file.write('epoch,\ttrain_loss,\ttest_loss\n')
+
+        with open(self._model_folder + self._name + '.json', 'w') as file:
+            json.dump(params, file)
 
     @abstractmethod
-    def predict(self, input_data: ndarray) -> ndarray:
+    def predict(self, input_data: np.ndarray) -> np.ndarray:
         raise Exception("Realize method")
 
     @abstractmethod
     def save_model(self, model_path: str) -> None:
         raise Exception("Realize method")
 
-    def train(self, train_data: dict, valid_data: dict, batch_size=1, epochs=1000,
-              train_repetitions=100, valid_repetitions=10, early_stop=10):
-
-        train_keys_list = list(train_data.keys())
-        valid_keys_list = list(valid_data.keys())
-
-        best_mae = None
-        best_epoch = 1
-
-        for e in range(1, epochs+1):
-
-            train_mae = 0
-            for _ in range(train_repetitions):
-                train_data_list = random.choice(train_keys_list, size=batch_size, replace=False)
-                train_batch_x, train_batch_y = self._create_batch(train_data_list, train_data)
-                train_mae = self._fit_batch(train_batch_x, train_batch_y)
-
-            sum_valid_mae = 0
-            for _ in range(valid_repetitions):
-                valid_data_list = random.choice(valid_keys_list, size=batch_size, replace=False)
-                valid_batch_x, valid_batch_y = self._create_batch(valid_data_list, valid_data)
-                model_result = self.predict(valid_batch_x)
-                valid_mae = self._calculate_mae(model_result, valid_batch_y)
-                sum_valid_mae += valid_mae
-            valid_mae = sum_valid_mae / valid_repetitions
-
-            try:
-                if valid_mae < best_mae:
-                    self.save_model(self._model_folder + self._name + '.hdf5')
-                    best_mae = valid_mae
-                    best_epoch = e
-            except:
-                best_mae = valid_mae
-
-            to_print = "Epoch {} / {}: train_mae = {:.4f}, valid_mae = {:.4f}".format(e, epochs, train_mae, valid_mae)
-            print(to_print)
-            with open(self._model_folder + self._name + '.info', 'a') as file:
-                file.write(to_print + '\n')
-
-            if e - best_epoch >= early_stop:
-                break
+    @abstractmethod
+    def train(self, train_data: dict, valid_data: dict):
+        pass
 
     @abstractmethod
-    def _create_model(self, params) -> None:
-        raise Exception("Realize method")
-
-    @abstractmethod
-    def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
+    def _create_model(self) -> None:
         raise Exception("Realize method")
 
     @classmethod
-    def _create_batch(cls, data_list: list, data_dict: dict) -> (ndarray, ndarray):
-        time_list = []
-        timeseries_list = []
-        for name in data_list:
-            time, timeseries = data_dict[name]
-            time_list.append(time)
-            timeseries_list.append(timeseries)
-        return array(timeseries_list), array(time_list)
+    def _data_generator(cls, data: dict, batch_size: int, feature_func=None) -> np.ndarray:
+        key_list = list(data.keys())
+        while True:
+            time_list = []
+            timeseries_list = []
+            data_names = np.random.choice(key_list, size=batch_size, replace=False)
+            for name in data_names:
+                time, timeseries = data[name]
+                time_list.append(time)
+                timeseries_list.append(timeseries)
+            time_list = np.array(time_list)
+            if feature_func is None:
+                timeseries_list = np.array(timeseries_list)
+            else:
+                timeseries_list = feature_func(np.array(timeseries_list))
+            yield timeseries_list, time_list
 
     @classmethod
-    def _calculate_mae(cls, output: ndarray, target: ndarray) -> float:
-        if len(target.shape) == 1:
-            target = expand_dims(target, axis=-1)
-        error = target - output
-        error = abs(error)
-        error = mean(error)
-        return float(error)
-
-    @classmethod
-    def _extract_features(cls, data: ndarray, num_parts=10, as_filters=False) -> ndarray:
-        calc_statistics = lambda d: concatenate([
-            min(d, axis=1, keepdims=True),
-            max(d, axis=1, keepdims=True),
-            mean(d, axis=1, keepdims=True),
-            var(d, axis=1, keepdims=True),
-            std(d, axis=1, keepdims=True),
-            quantile(d, 0.25, axis=1, keepdims=True),
-            quantile(d, 0.5, axis=1, keepdims=True),
-            quantile(d, 0.75, axis=1, keepdims=True)
+    def _extract_features(cls, data: np.ndarray, num_parts=10, as_filters=False) -> np.ndarray:
+        calc_statistics = lambda d: np.concatenate([
+            np.min(d, axis=1, keepdims=True),
+            np.max(d, axis=1, keepdims=True),
+            np.mean(d, axis=1, keepdims=True),
+            np.var(d, axis=1, keepdims=True),
+            np.std(d, axis=1, keepdims=True),
+            np.transpose(np.quantile(d, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95], axis=1)),
         ], axis=1)
+
+        def calc_fourie(data, n=10):
+            amp = np.abs(np.fft.rfft(data))
+            freq = np.fft.rfftfreq(data.shape[1], 1 / 1000)
+            new_freq = np.linspace(0, max(freq), n)
+            new_amp = np.zeros(shape=(amp.shape[0], n))
+            for i in range(amp.shape[0]):
+                func = interpolate.interp1d(freq, amp[i, :])
+                new_amp[i, :] = func(new_freq)
+            return new_amp
 
         statistic_params_list = []
 
         step = data.shape[1] // num_parts
         for i in range(num_parts):
-            features = calc_statistics(data[:, i*step:(i+1)*step])
+            data_part = data[:, i * step:(i + 1) * step]
+            features = calc_statistics(data_part)
             if as_filters:
-                features = expand_dims(features, axis=1)
+                #features_fourie = calc_fourie(data_part)
+                features = np.expand_dims(features, axis=1)
+                #features_fourie = np.expand_dims(features_fourie, axis=1)
+                #features = np.concatenate([features_data, features_fourie], axis=-1)
             statistic_params_list.append(features)
 
-        return concatenate(statistic_params_list, axis=1)
+        #if not as_filters:
+        #    fourie_filters = calc_fourie(data, n=100)
+        #    statistic_params_list.append(fourie_filters)
 
+        return np.concatenate(statistic_params_list, axis=1)

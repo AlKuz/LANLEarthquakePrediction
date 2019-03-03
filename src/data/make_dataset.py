@@ -73,9 +73,9 @@ def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13,
 
 
 if __name__ == "__main__":
-    TRAIN_DATA_PATH = "./data/raw/train.csv"
-    PROCESSED_DATA_FOLDER = "./data/processed/"
-    INTERIM_DATA_FOLDER = "./data/processed/"
+    TRAIN_DATA_PATH = "../../data/raw/train.csv"
+    PROCESSED_DATA_FOLDER = "../../data/processed/"
+    INTERIM_DATA_FOLDER = "../../data/processed/"
 
     timesteps = 150000
     step = 30000
