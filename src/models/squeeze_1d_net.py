@@ -2,6 +2,7 @@
 Convolution model
 """
 from keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense, Concatenate
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
 from numpy import ndarray, expand_dims
@@ -12,28 +13,26 @@ from src.models.model import Model
 class Squeeze1DNetModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data, num_parts=self._timesteps, as_filters=True)
+        features = self.extract_features(input_data, num_parts=self._timesteps, as_filters=True)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
         self._model.save(model_path)
 
-    def _create_model(self, params: dict) -> None:
+    def _create_model(self) -> None:
 
-        self._timesteps = params['timesteps']
-        filters = params['filters']
-        kernels = params['kernels']
-        optimizer = params['optimizer']
-        optimizer_params = params['optimizer_params']
+        optimizer_dict = {
+            'Adam': Adam,
+            'SGD': SGD
+        }
 
-        if optimizer == 'Adam':
-            optimizer = Adam
-        elif optimizer == 'SGD':
-            optimizer = SGD
-        else:
-            raise Exception("Unknown optimizer")
+        self._timesteps = self._params['timesteps']
+        filters = self._params['filters']
+        kernels = self._params['kernels']
+        optimizer = optimizer_dict[self._params['optimizer']]
+        optimizer_params = self._params['optimizer_params']
 
-        input_tensor = Input(shape=(self._timesteps, 8))
+        input_tensor = Input(shape=(self._timesteps, 15))
         model = input_tensor
         for filter, kernel in zip(filters, kernels):
             if isinstance(filter, int):
@@ -57,6 +56,37 @@ class Squeeze1DNetModel(Model):
         ])
         return layer
 
-    def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
-        features = self._extract_features(train_x, num_parts=self._timesteps, as_filters=True)
-        return self._model.train_on_batch(features, train_y)
+    def train(self, train_data: dict, valid_data: dict):
+
+        batch_size = self._params['batch_size']
+        epochs = self._params['epochs']
+        train_repetitions = self._params['train_repetitions']
+        valid_repetitions = self._params['valid_repetitions']
+        early_stop = self._params['early_stop']
+
+        feature_extractor = lambda x: self.extract_features(x, self._params['timesteps'], as_filters=True)
+
+        callback_list = [
+            ModelCheckpoint(
+                filepath=self._model_folder + self._name + '.hdf5',
+                monitor='val_loss',
+                save_best_only=True
+            ),
+            EarlyStopping(
+                monitor='val_loss',
+                patience=early_stop
+            ),
+            CSVLogger(
+                filename=self._model_folder + self._name + '.info',
+                append=True
+            )
+        ]
+
+        self._model.fit_generator(
+            self._data_generator(train_data, batch_size, feature_extractor),
+            steps_per_epoch=train_repetitions,
+            epochs=epochs,
+            callbacks=callback_list,
+            validation_data=self._data_generator(valid_data, batch_size, feature_extractor),
+            validation_steps=valid_repetitions
+        )

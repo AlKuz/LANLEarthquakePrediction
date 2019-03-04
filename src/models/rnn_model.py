@@ -1,10 +1,10 @@
 """
 RNN model
 """
-from keras.layers import Input, Dense, Flatten, Concatenate, Add, LSTM, GRU
+from keras.layers import Input, Dense, Flatten, Concatenate, Add, LSTM, GRU, MaxPooling1D
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
 from numpy import ndarray
 
 from src.models.model import Model
@@ -13,7 +13,7 @@ from src.models.model import Model
 class RNNModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data, num_parts=self._timesteps, as_filters=True)
+        features = self.extract_features(input_data, num_parts=self._timesteps, as_filters=True)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
@@ -32,22 +32,32 @@ class RNNModel(Model):
         }
 
         self._timesteps = self._params['timesteps']
+        add_fourier = self._params['add_fourier']
         layers = self._params['layers']
         layer_types = list(map(lambda x: rnn_types[x], self._params['layer_types']))
         optimizer = optimizer_dict[self._params['optimizer']]
         optimizer_params = self._params['optimizer_params']
 
-        assert len(layers) == len(layer_types) == 2
+        assert len(layers) == len(layer_types)
+
+        def rnn_branch(input_tensor):
+            branch = Dense(layers[0], activation='tanh')(input_tensor)
+            for layer, layer_type in zip(layers, layer_types):
+                rnn_l = layer_type(layer, return_sequences=True)(branch)
+                rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(branch)
+                branch = Concatenate()([rnn_l, rnn_r])
+            return branch
+
+        if add_fourier:
+            self._timesteps *= 2
 
         input_tensor = Input(shape=(self._timesteps, 15))
-        model = input_tensor
-
-        for layer, layer_type in zip(layers, layer_types):
-            model = Dense(layer, activation='tanh')(model)
-
-            rnn_l = layer_type(layer, return_sequences=True)(model)
-            rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(model)
-            model = Concatenate()([rnn_l, rnn_r])
+        if add_fourier:
+            l_branch = rnn_branch(input_tensor[:, :self._timesteps//2, :])
+            r_branch = rnn_branch(input_tensor[:, self._timesteps//2:, :])
+            model = Concatenate(axis=1)([l_branch, r_branch])
+        else:
+            model = rnn_branch(input_tensor)
 
         model = Flatten()(model)
         model = Dense(1, activation='relu')(model)
@@ -63,8 +73,10 @@ class RNNModel(Model):
         train_repetitions = self._params['train_repetitions']
         valid_repetitions = self._params['valid_repetitions']
         early_stop = self._params['early_stop']
+        reduce_factor = self._params['reduce_factor']
+        epochs_to_reduce = self._params['epochs_to_reduce']
 
-        feature_extractor = lambda x: self._extract_features(x, self._params['timesteps'], as_filters=True)
+        feature_extractor = lambda x: self.extract_features(x, self._params['timesteps'], as_filters=True)
 
         callback_list = [
             ModelCheckpoint(
@@ -79,6 +91,11 @@ class RNNModel(Model):
             CSVLogger(
                 filename=self._model_folder + self._name + '.info',
                 append=True
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=reduce_factor,
+                patience=epochs_to_reduce
             )
         ]
 

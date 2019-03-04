@@ -4,8 +4,8 @@ Convolution model
 from keras.layers import Input, Conv1D, MaxPooling1D, Flatten, Dense
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
-from numpy import ndarray
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
+from numpy import ndarray, expand_dims
 
 from src.models.model import Model
 
@@ -13,7 +13,7 @@ from src.models.model import Model
 class ConvolutionModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data, num_parts=self._params['timesteps'], as_filters=True)
+        features = self.extract_features(input_data, num_parts=self._params['timesteps'], as_filters=True)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
@@ -27,15 +27,24 @@ class ConvolutionModel(Model):
         }
 
         timesteps = self._params['timesteps']
+        self._features_as_filter = self._params['features_as_filter']
         filters = self._params['filters']
         kernels = self._params['kernels']
         optimizer = optimizer_dict[self._params['optimizer']]
         optimizer_params = self._params['optimizer_params']
 
-        input_tensor = Input(shape=(timesteps, 8))
+        if self._features_as_filter:
+            shape = (timesteps, 15)
+        else:
+            shape = (timesteps*15, 1)
+        input_tensor = Input(shape=shape)
         model = input_tensor
         for filter, kernel in zip(filters, kernels):
-            model = Conv1D(filter, kernel, padding='same', activation='relu')(model)
+            if isinstance(filter, int):
+                model = Conv1D(filter, kernel, padding='same', activation='relu')(model)
+            else:
+                for fil in filter:
+                    model = Conv1D(fil, kernel, padding='same', activation='relu')(model)
             model = MaxPooling1D()(model)
 
         model = Flatten()(model)
@@ -51,8 +60,12 @@ class ConvolutionModel(Model):
         train_repetitions = self._params['train_repetitions']
         valid_repetitions = self._params['valid_repetitions']
         early_stop = self._params['early_stop']
+        reduce_factor = self._params['reduce_factor']
+        epochs_to_reduce = self._params['epochs_to_reduce']
 
-        feature_extractor = lambda x: self._extract_features(x, self._params['timesteps'], as_filters=True)
+        feature_extractor = lambda x:\
+            expand_dims(self.extract_features(x, self._params['timesteps'], as_filters=self._features_as_filter),
+                        axis=-1)
 
         callback_list = [
             ModelCheckpoint(
@@ -67,6 +80,11 @@ class ConvolutionModel(Model):
             CSVLogger(
                 filename=self._model_folder + self._name + '.info',
                 append=True
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=reduce_factor,
+                patience=epochs_to_reduce
             )
         ]
 

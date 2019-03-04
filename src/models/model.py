@@ -4,7 +4,6 @@ Abstract model class
 from abc import ABC, abstractmethod
 import numpy as np
 import json
-from scipy import interpolate
 
 
 class Model(ABC):
@@ -64,41 +63,33 @@ class Model(ABC):
             yield timeseries_list, time_list
 
     @classmethod
-    def _extract_features(cls, data: np.ndarray, num_parts=10, as_filters=False) -> np.ndarray:
-        calc_statistics = lambda d: np.concatenate([
-            np.min(d, axis=1, keepdims=True),
-            np.max(d, axis=1, keepdims=True),
-            np.mean(d, axis=1, keepdims=True),
-            np.var(d, axis=1, keepdims=True),
-            np.std(d, axis=1, keepdims=True),
-            np.transpose(np.quantile(d, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95], axis=1)),
+    def extract_features(cls, data: np.ndarray, num_parts=10, as_filters=False, add_fourier=False) -> np.ndarray:
+        statistic_list = cls._process_data(data, num_parts, as_filters)
+        if add_fourier:
+            fourier = np.abs(np.fft.rfft(data))
+            statistic_list = statistic_list + cls._process_data(fourier, num_parts, as_filters)
+        statistic_list = np.concatenate(statistic_list, axis=1)
+        return statistic_list
+
+    @classmethod
+    def calc_statistics(cls, data: np.ndarray) -> np.ndarray:
+        return np.concatenate([
+            np.min(data, axis=1, keepdims=True),
+            np.max(data, axis=1, keepdims=True),
+            np.mean(data, axis=1, keepdims=True),
+            np.var(data, axis=1, keepdims=True),
+            np.std(data, axis=1, keepdims=True),
+            np.transpose(np.quantile(data, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95], axis=1)),
         ], axis=1)
 
-        def calc_fourie(data, n=10):
-            amp = np.abs(np.fft.rfft(data))
-            freq = np.fft.rfftfreq(data.shape[1], 1 / 1000)
-            new_freq = np.linspace(0, max(freq), n)
-            new_amp = np.zeros(shape=(amp.shape[0], n))
-            for i in range(amp.shape[0]):
-                func = interpolate.interp1d(freq, amp[i, :])
-                new_amp[i, :] = func(new_freq)
-            return new_amp
-
-        statistic_params_list = []
-
-        step = data.shape[1] // num_parts
+    @classmethod
+    def _process_data(cls, data: np.ndarray, num_parts: int, as_filters: bool) -> list:
+        statistics_list = []
+        data_step = data.shape[1] // num_parts
         for i in range(num_parts):
-            data_part = data[:, i * step:(i + 1) * step]
-            features = calc_statistics(data_part)
+            data_part = data[:, i * data_step:(i + 1) * data_step]
+            features = cls.calc_statistics(data_part)
             if as_filters:
-                #features_fourie = calc_fourie(data_part)
                 features = np.expand_dims(features, axis=1)
-                #features_fourie = np.expand_dims(features_fourie, axis=1)
-                #features = np.concatenate([features_data, features_fourie], axis=-1)
-            statistic_params_list.append(features)
-
-        #if not as_filters:
-        #    fourie_filters = calc_fourie(data, n=100)
-        #    statistic_params_list.append(fourie_filters)
-
-        return np.concatenate(statistic_params_list, axis=1)
+            statistics_list.append(features)
+        return statistics_list

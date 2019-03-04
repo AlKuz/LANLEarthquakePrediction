@@ -18,11 +18,11 @@ class LGBMRegressor(Model):
         self._model = lgb.LGBMRegressor(**params, n_jobs=-1)
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data)
+        features = self.extract_features(input_data)
         return self._model.predict(features)
 
     def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
-        features = self._extract_features(train_x)
+        features = self.extract_features(train_x)
 
         self._model.fit(features, train_y)
 

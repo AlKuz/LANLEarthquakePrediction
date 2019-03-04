@@ -15,7 +15,7 @@ class ConvolutionRNNModel(Model):
         super().__init__(params, folder, name, seed)
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data, num_parts=self._timesteps, as_filters=True)
+        features = self.extract_features(input_data, num_parts=self._timesteps, as_filters=True)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
@@ -64,5 +64,5 @@ class ConvolutionRNNModel(Model):
         self._model.compile(optimizer=optimizer(**optimizer_params), loss='mae')
 
     def _fit_batch(self, train_x: ndarray, train_y: ndarray) -> float:
-        features = self._extract_features(train_x, num_parts=self._timesteps, as_filters=True)
+        features = self.extract_features(train_x, num_parts=self._timesteps, as_filters=True)
         return self._model.train_on_batch(features, train_y)

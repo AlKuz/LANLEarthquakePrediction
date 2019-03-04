@@ -32,53 +32,62 @@ class ModelConfigurator(object):
         return LGBMRegressor(params, folder, name), name, params
 
     @classmethod
-    def convolution(cls, folder) -> (Model, str):
+    def convolution_model(cls, folder) -> (Model, str):
         params = {
-            'timesteps': 50,
-            'filters': (16, 32, 64),
-            'kernels': (3, 3, 3),
+            'timesteps': 150,
+            'filters': (16, 32, 64, 128, 256, 512),
+            'kernels': (1, 1, 3, 1, 1, 3),
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.001},
             'batch_size': 128,
             'epochs': 1000,
             'train_repetitions': 100,
             'valid_repetitions': 10,
-            'early_stop': 50
+            'early_stop': 50,
+            'reduce_factor': 0.8,
+            'epochs_to_reduce': 5,
+            'features_as_filter': False
         }
-        name = 'convolution_model'
+        name = 'convolution_model_v2'
         return ConvolutionModel(params, folder, name), name, params
 
     @classmethod
     def dense_model(cls, folder) -> (Model, str):
         params = {
-            'num_feature_parts': 20,
-            'layers': (512, 256, 128),
+            'num_feature_parts': 50,
+            'layers': (64, 128),
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.001},
             'batch_size': 128,
             'epochs': 1000,
             'train_repetitions': 100,
             'valid_repetitions': 10,
-            'early_stop': 50
+            'early_stop': 50,
+            'reduce_factor': 0.8,
+            'epochs_to_reduce': 5,
+            'features_as_filter': True
         }
-        name = 'dense_model'
+        name = 'dense_model_v2'
         return DenseModel(params, folder, name), name, params
 
     @classmethod
     def rnn_model(cls, folder) -> (Model, str):
         params = {
-            'timesteps': 100,
-            'layers': (64, 128, 256),
-            'layer_types': ('GRU', 'GRU', 'GRU'),
-            'optimizer': 'SGD',
-            'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True},
+            'timesteps': 50,
+            'add_fourier': True,
+            'layers': (128, 256),
+            'layer_types': ('LSTM', 'LSTM'),
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.002},
             'batch_size': 128,
             'epochs': 1000,
-            'train_repetitions': 100,
+            'train_repetitions': 200,
             'valid_repetitions': 10,
-            'early_stop': 50
+            'early_stop': 15,
+            'reduce_factor': 0.8,
+            'epochs_to_reduce': 5
         }
-        name = 'rnn_model_v2'
+        name = 'rnn_model_v3'
         return RNNModel(params, folder, name), name, params
 
     @classmethod
@@ -87,8 +96,13 @@ class ModelConfigurator(object):
             'timesteps': 150,
             'filters': (32, 64, 128, 256),
             'kernels': (5, 5, 3, 3),
-            'optimizer': 'SGD',
-            'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True}
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.001},
+            'batch_size': 128,
+            'epochs': 1000,
+            'train_repetitions': 100,
+            'valid_repetitions': 10,
+            'early_stop': 50
         }
         name = 'squeeze_1d_model'
         return Squeeze1DNetModel(params, folder, name), name, params

@@ -1,10 +1,10 @@
 """
 Dense model
 """
-from keras.layers import Input, Dense
+from keras.layers import Input, Dense, Flatten
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
-from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
 from numpy import ndarray
 
 from src.models.model import Model
@@ -13,7 +13,7 @@ from src.models.model import Model
 class DenseModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self._extract_features(input_data, num_parts=self._num_parts)
+        features = self.extract_features(input_data, num_parts=self._num_parts)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
@@ -27,14 +27,20 @@ class DenseModel(Model):
         }
 
         self._num_parts = self._params['num_feature_parts']
+        self._features_as_filter = self._params['features_as_filter']
         layers = self._params['layers']
         optimizer = optimizer_dict[self._params['optimizer']]
         optimizer_params = self._params['optimizer_params']
 
-        input_tensor = Input(shape=(self._num_parts*15,))
+        if self._features_as_filter:
+            shape = (self._num_parts, 15)
+        else:
+            shape = (self._num_parts*15,)
+        input_tensor = Input(shape=shape)
         model = input_tensor
         for depth in layers:
-            model = Dense(depth, activation='relu', kernel_initializer='glorot_normal')(model)
+            model = Dense(depth, activation='tanh', kernel_initializer='glorot_normal')(model)
+        model = Flatten()(model)
         model = Dense(1, activation='relu')(model)
         self._model = KModel(input_tensor, model)
 
@@ -47,8 +53,11 @@ class DenseModel(Model):
         train_repetitions = self._params['train_repetitions']
         valid_repetitions = self._params['valid_repetitions']
         early_stop = self._params['early_stop']
+        reduce_factor = self._params['reduce_factor']
+        epochs_to_reduce = self._params['epochs_to_reduce']
 
-        feature_extractor = lambda x: self._extract_features(x, self._params['num_feature_parts'])
+        feature_extractor = lambda x: self.extract_features(x, self._params['num_feature_parts'],
+                                                            as_filters=self._features_as_filter)
 
         callback_list = [
             ModelCheckpoint(
@@ -63,6 +72,11 @@ class DenseModel(Model):
             CSVLogger(
                 filename=self._model_folder + self._name + '.info',
                 append=True
+            ),
+            ReduceLROnPlateau(
+                monitor='val_loss',
+                factor=reduce_factor,
+                patience=epochs_to_reduce
             )
         ]
 
