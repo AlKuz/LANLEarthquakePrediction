@@ -75,7 +75,7 @@ class ModelConfigurator(object):
         params = {
             'timesteps': 50,
             'add_fourier': True,
-            'layers': (128, 256),
+            'layers': (64, 128),
             'layer_types': ('LSTM', 'LSTM'),
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.002},

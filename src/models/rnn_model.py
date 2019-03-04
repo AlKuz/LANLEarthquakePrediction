@@ -1,7 +1,7 @@
 """
 RNN model
 """
-from keras.layers import Input, Dense, Flatten, Concatenate, Add, LSTM, GRU, MaxPooling1D
+from keras.layers import Input, Dense, Flatten, Concatenate, Add, LSTM, GRU, MaxPooling1D, Lambda
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
@@ -53,9 +53,11 @@ class RNNModel(Model):
 
         input_tensor = Input(shape=(self._timesteps, 15))
         if add_fourier:
-            l_branch = rnn_branch(input_tensor[:, :self._timesteps//2, :])
-            r_branch = rnn_branch(input_tensor[:, self._timesteps//2:, :])
-            model = Concatenate(axis=1)([l_branch, r_branch])
+            l_branch = Lambda(lambda x: x[:, :self._timesteps//2, :])(input_tensor)
+            r_branch = Lambda(lambda x: x[:, self._timesteps//2:, :])(input_tensor)
+            l_branch = rnn_branch(l_branch)
+            r_branch = rnn_branch(r_branch)
+            model = Concatenate()([l_branch, r_branch])
         else:
             model = rnn_branch(input_tensor)
 
@@ -68,6 +70,7 @@ class RNNModel(Model):
 
     def train(self, train_data: dict, valid_data: dict):
 
+        add_fourier = self._params['add_fourier']
         batch_size = self._params['batch_size']
         epochs = self._params['epochs']
         train_repetitions = self._params['train_repetitions']
@@ -76,7 +79,8 @@ class RNNModel(Model):
         reduce_factor = self._params['reduce_factor']
         epochs_to_reduce = self._params['epochs_to_reduce']
 
-        feature_extractor = lambda x: self.extract_features(x, self._params['timesteps'], as_filters=True)
+        feature_extractor = lambda x: self.extract_features(x, self._params['timesteps'],
+                                                            as_filters=True, add_fourier=add_fourier)
 
         callback_list = [
             ModelCheckpoint(
