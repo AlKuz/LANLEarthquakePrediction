@@ -1,7 +1,7 @@
 """
 RNN model
 """
-from keras.layers import Input, Dense, Flatten, Concatenate, Add, LSTM, GRU, MaxPooling1D, Lambda
+from keras.layers import Input, Dense, Flatten, Concatenate, LSTM, GRU, Dropout
 from keras.models import Model as KModel
 from keras.optimizers import Adam, SGD
 from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLROnPlateau
@@ -32,6 +32,7 @@ class RNNModel(Model):
         }
 
         self._timesteps = self._params['timesteps']
+        dropout = self._params['dropout']
         add_fourier = self._params['add_fourier']
         layers = self._params['layers']
         layer_types = list(map(lambda x: rnn_types[x], self._params['layer_types']))
@@ -40,29 +41,19 @@ class RNNModel(Model):
 
         assert len(layers) == len(layer_types)
 
-        def rnn_branch(input_tensor):
-            branch = Dense(layers[0], activation='tanh')(input_tensor)
-            for layer, layer_type in zip(layers, layer_types):
-                rnn_l = layer_type(layer, return_sequences=True)(branch)
-                rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(branch)
-                branch = Concatenate()([rnn_l, rnn_r])
-            return branch
-
         if add_fourier:
             self._timesteps *= 2
 
         input_tensor = Input(shape=(self._timesteps, 15))
-        if add_fourier:
-            l_branch = Lambda(lambda x: x[:, :self._timesteps//2, :])(input_tensor)
-            r_branch = Lambda(lambda x: x[:, self._timesteps//2:, :])(input_tensor)
-            l_branch = rnn_branch(l_branch)
-            r_branch = rnn_branch(r_branch)
-            model = Concatenate()([l_branch, r_branch])
-        else:
-            model = rnn_branch(input_tensor)
-
+        model = Dense(layers[0], activation='tanh')(input_tensor)
+        for layer, layer_type in zip(layers, layer_types):
+            rnn_l = layer_type(layer, return_sequences=True)(model)
+            rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(model)
+            model = Concatenate()([rnn_l, rnn_r])
         model = Flatten()(model)
         model = Dense(1, activation='relu')(model)
+        if dropout != 0:
+            model = Dropout(dropout)(model)
 
         self._model = KModel(input_tensor, model)
 
@@ -103,11 +94,14 @@ class RNNModel(Model):
             )
         ]
 
+        train_generator = self._data_generator(train_data, batch_size, feature_extractor)
+        valid_generator = self._data_generator(valid_data, batch_size, feature_extractor)
+
         self._model.fit_generator(
-            self._data_generator(train_data, batch_size, feature_extractor),
+            train_generator,
             steps_per_epoch=train_repetitions,
             epochs=epochs,
             callbacks=callback_list,
-            validation_data=self._data_generator(valid_data, batch_size, feature_extractor),
+            validation_data=valid_generator,
             validation_steps=valid_repetitions
         )

@@ -77,13 +77,14 @@ class ModelConfigurator(object):
             'add_fourier': True,
             'layers': (64, 128),
             'layer_types': ('LSTM', 'LSTM'),
+            'dropout': 0.2,
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.002},
             'batch_size': 128,
             'epochs': 1000,
             'train_repetitions': 200,
             'valid_repetitions': 10,
-            'early_stop': 15,
+            'early_stop': 50,
             'reduce_factor': 0.8,
             'epochs_to_reduce': 5
         }

@@ -35,7 +35,7 @@ if __name__ == "__main__":
     i = 0
     for name, data in test_data:
         timesteps = model_settings['timesteps']
-        data_to_predict = Model.extract_features(np.transpose(data), timesteps, as_filters=True)
+        data_to_predict = Model.extract_features(np.transpose(data), timesteps, as_filters=True, add_fourier=True)
         result = model.predict(data_to_predict)[0, 0]
         with open(RESULT_FILE, 'a') as file:
             file.write("{},{}\n".format(name, result))
