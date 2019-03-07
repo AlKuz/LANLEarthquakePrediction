@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, '/home/alexander/Projects/LANLEarthquakePrediction')
 from src.models import Model,\
     ConvolutionModel,\
     DenseModel, RNNModel,\

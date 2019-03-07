@@ -13,7 +13,7 @@ from src.models.model import Model
 class RNNModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
-        features = self.extract_features(input_data, num_parts=self._timesteps, as_filters=True)
+        features = self.extract_features(input_data, num_parts=self._timesteps)
         return self._model.predict(features)
 
     def save_model(self, model_path: str):
@@ -44,7 +44,7 @@ class RNNModel(Model):
         if add_fourier:
             self._timesteps *= 2
 
-        input_tensor = Input(shape=(self._timesteps, 15))
+        input_tensor = Input(shape=(self._timesteps, 30))
         model = Dense(layers[0], activation='tanh')(input_tensor)
         for layer, layer_type in zip(layers, layer_types):
             rnn_l = layer_type(layer, return_sequences=True)(model)
@@ -70,9 +70,6 @@ class RNNModel(Model):
         reduce_factor = self._params['reduce_factor']
         epochs_to_reduce = self._params['epochs_to_reduce']
 
-        feature_extractor = lambda x: self.extract_features(x, self._params['timesteps'],
-                                                            as_filters=True, add_fourier=add_fourier)
-
         callback_list = [
             ModelCheckpoint(
                 filepath=self._model_folder + self._name + '.hdf5',
@@ -94,8 +91,8 @@ class RNNModel(Model):
             )
         ]
 
-        train_generator = self._data_generator(train_data, batch_size, feature_extractor)
-        valid_generator = self._data_generator(valid_data, batch_size, feature_extractor)
+        train_generator = self._data_generator(train_data, batch_size, self._timesteps)
+        valid_generator = self._data_generator(valid_data, batch_size, self._timesteps)
 
         self._model.fit_generator(
             train_generator,
