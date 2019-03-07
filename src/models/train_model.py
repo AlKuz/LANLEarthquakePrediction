@@ -1,5 +1,4 @@
 from src.models import Model,\
-    LGBMRegressor,\
     ConvolutionModel,\
     DenseModel, RNNModel,\
     ConvolutionRNNModel,\
@@ -9,27 +8,6 @@ import pickle
 
 class ModelConfigurator(object):
     """Configure models via class methods"""
-
-    @classmethod
-    def lgbm_regressor(cls, folder) -> (Model, str):
-        params = {
-            'num_leaves': 54,
-            #'min_data_in_leaf': 79,
-            'objective': 'huber',
-            'max_depth': -1,
-            'learning_rate': 0.01,
-            #"boosting": "gbdt",
-            # "feature_fraction": 0.8354507676881442,
-            #"bagging_freq": 3,
-            #"bagging_fraction": 0.8126672064208567,
-            "bagging_seed": 11,
-            "metric": 'mae',
-            "verbosity": -1,
-            'reg_alpha': 1.1302650970728192,
-            'reg_lambda': 0.3603427518866501
-        }
-        name = 'lgbm_regressor'
-        return LGBMRegressor(params, folder, name), name, params
 
     @classmethod
     def convolution_model(cls, folder) -> (Model, str):
