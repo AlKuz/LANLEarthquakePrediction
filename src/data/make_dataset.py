@@ -6,10 +6,10 @@ import pandas as pd
 import numpy as np
 import pickle
 import random
-import string
+import hashlib
 
 
-def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13, train_val_test=(0.7, 0.15, 0.15)):
+def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13, train_valid=(0.8, 0.2)):
     """
     Generate shuffled data
     :param data_path: path to the original csv data
@@ -17,26 +17,28 @@ def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13,
     :param timesteps_to_generate: size of timeseries
     :param step: step to shift timeseries through the original timeseries data
     :param seed: seed to generate tameseries name
-    :param train_val_test: parts to train, validation and test datasets
+    :param train_valid: parts to train, validation and test datasets
     :return: None
     """
-    assert sum(train_val_test) == 1
+    assert sum(train_valid) == 1 and len(train_valid) == 2
 
     TIMESTEPS_IN_ALL = 629145480
     NUMBER_BLOCKS = (TIMESTEPS_IN_ALL - timesteps_to_generate + step) // step
     random.seed(a=seed)
 
     train_data_dict = dict()
-    val_data_dict = dict()
-    test_data_dict = dict()
+    valid_data_dict = dict()
 
     counter = 0
-    for chunk in pd.read_csv(data_path, chunksize=timesteps_to_generate * 10):
+    for chunk in pd.read_csv(data_path, chunksize=timesteps_to_generate * 20):
 
         try:
             data: np.ndarray = np.concatenate([data, chunk.values])
         except:
             data: np.ndarray = chunk.values
+
+        random_number = random.uniform(0, 1)
+        is_train = True if random_number < train_valid[0] else False
 
         while data.shape[0] >= timesteps_to_generate:
 
@@ -44,16 +46,11 @@ def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13,
             time = (data[timesteps_to_generate-1, 1]).astype('float32')
             data = data[step:, ...]
 
-            random_number = random.uniform(0, 1)
-            name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-            while name in train_data_dict or name in val_data_dict or name in test_data_dict:
-                name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-            if 0 < random_number <= train_val_test[0]:
+            name = hashlib.md5(timeseries.tostring()).hexdigest()
+            if is_train:
                 train_data_dict[name] = (time, timeseries)
-            elif train_val_test[0] < random_number <= sum(train_val_test[:2]):
-                val_data_dict[name] = (time, timeseries)
             else:
-                test_data_dict[name] = (time, timeseries)
+                valid_data_dict[name] = (time, timeseries)
 
             counter += 1
             if counter % 100 == 0:
@@ -64,12 +61,8 @@ def generate_data(data_path, path_to_save, timesteps_to_generate, step, seed=13,
     print("Train data was saved")
 
     with open(path_to_save + 'validation.pkl', 'wb') as f:
-        pickle.dump(val_data_dict, f)
+        pickle.dump(valid_data_dict, f)
     print("Validation data was saved")
-
-    with open(path_to_save + 'test.pkl', 'wb') as f:
-        pickle.dump(test_data_dict, f)
-    print("Test data was saved")
 
 
 if __name__ == "__main__":
