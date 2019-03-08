@@ -4,6 +4,7 @@ Abstract model class
 from abc import ABC, abstractmethod
 import numpy as np
 import json
+from librosa.feature import mfcc
 
 
 class Model(ABC):
@@ -46,24 +47,32 @@ class Model(ABC):
 
     def _data_generator(self, data: dict, batch_size: int, num_parts: int) -> np.ndarray:
         key_list = list(data.keys())
-        time_data = np.zeros(shape=(batch_size, 1))
-        timeseries_data = np.zeros(shape=(batch_size, 150000))
         while True:
+            time_data = []
+            timeseries_data = []
             data_names = np.random.choice(key_list, size=batch_size, replace=False)
             for n, name in enumerate(data_names):
                 time, timeseries = data[name]
-                time_data[n, 0] = time
-                timeseries_data[n, :] = timeseries
-            yield self.extract_features(timeseries_data, num_parts), time_data
+                time_data.append(time)
+                timeseries_data.append(timeseries)
+            time_data = np.array(time_data)
+            timeseries_data = np.array(timeseries_data)
+            timeseries_data = self.extract_features(timeseries_data, num_parts)
+            yield timeseries_data, time_data
 
     @classmethod
-    def extract_features(cls, data: np.ndarray, num_parts) -> np.ndarray:
-        batches = data.shape[0]
-        data = np.reshape(data, newshape=(batches, num_parts, -1))
-        fourier = np.abs(np.fft.rfft(data))
-        data_features = cls.calc_statistics(data)
-        fourier_features = cls.calc_statistics(fourier)
-        return np.concatenate([data_features, fourier_features], axis=-1)
+    def extract_features(cls, data: np.ndarray, num_parts=None) -> np.ndarray:
+        data_features = []
+        for i in range(data.shape[0]):
+            data_features.append(mfcc(data[i].astype('float32')))
+        data_features = np.array(data_features)
+        data_features = np.transpose(data_features, axes=(0, 2, 1))
+        #batches, timesteps = data.shape
+        #data = np.reshape(data, newshape=(batches, num_parts, -1))
+        #data_features = cls.calc_statistics(data)
+        #fourier = np.abs(np.fft.rfft(data))
+        #fourier_features = cls.calc_statistics(fourier)
+        return data_features #np.concatenate([data_features, fourier_features], axis=-1)
 
     @classmethod
     def calc_statistics(cls, data: np.ndarray) -> np.ndarray:
@@ -73,5 +82,5 @@ class Model(ABC):
             np.mean(data, axis=-1, keepdims=True),
             np.var(data, axis=-1, keepdims=True),
             np.std(data, axis=-1, keepdims=True),
-            np.transpose(np.quantile(data, [0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9, 0.95, 0.98], axis=-1), (1, 2, 0)),
+            np.transpose(np.quantile(data, [0.05, 0.25, 0.5, 0.75, 0.95], axis=-1), (1, 2, 0)),
         ], axis=-1)

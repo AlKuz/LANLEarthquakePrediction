@@ -54,19 +54,18 @@ class ModelConfigurator(object):
     def rnn_model(cls, folder) -> (Model, str):
         params = {
             'timesteps': 50,
-            'add_fourier': True,
-            'layers': (64, 128),
+            'layers': (256, 512),
             'layer_types': ('LSTM', 'LSTM'),
-            'dropout': 0.2,
+            'dropout': 0,
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.002},
             'batch_size': 128,
             'epochs': 1000,
             'train_repetitions': 200,
             'valid_repetitions': 10,
-            'early_stop': 50,
+            'early_stop': 16,
             'reduce_factor': 0.8,
-            'epochs_to_reduce': 5
+            'epochs_to_reduce': 4
         }
         name = 'rnn_model_v3'
         return RNNModel(params, folder, name), name, params
@@ -91,15 +90,24 @@ class ModelConfigurator(object):
     @classmethod
     def conv_rnn_model(cls, folder):
         params = {
-            'timesteps': 150,
-            'filters': (32, 64),
+            'timesteps': 293,
+            'filters': (64, 128),
             'kernels': (3, 3),
-            'rnn_types': ('GRU', 'GRU'),
-            'rnn_layers': (64, 64),
-            'optimizer': 'SGD',
-            'optimizer_params': {'lr': 0.01, 'decay': 1e-6, 'momentum': 0.9, 'nesterov': True}
+            'conv_regularizers_params': 0.01,
+            'conv_regularizers': 'l2',
+            'rnn_layers': (128, 256),
+            'rnn_types': ('LSTM', 'LSTM'),
+            'optimizer': 'Adam',
+            'optimizer_params': {'lr': 0.001},
+            'batch_size': 128,
+            'epochs': 1000,
+            'train_repetitions': 200,
+            'valid_repetitions': 10,
+            'early_stop': 16,
+            'reduce_factor': 0.8,
+            'epochs_to_reduce': 4
         }
-        name = 'conv_rnn_model'
+        name = 'conv_rnn_model_v2'
         return ConvolutionRNNModel(params, folder, name), name, params
 
 
@@ -116,5 +124,5 @@ if __name__ == "__main__":
         valid_data = pickle.load(f)
     print("Data was loaded")
 
-    model, name, params = ModelConfigurator.rnn_model(MODELS_FOLDER)
+    model, name, params = ModelConfigurator.conv_rnn_model(MODELS_FOLDER)
     model.train(train_data, valid_data)
