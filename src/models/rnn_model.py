@@ -8,11 +8,13 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, ReduceLRO
 from numpy import ndarray
 
 from src.models.model import Model
+from src.data import DataGenerator
 
 
 class RNNModel(Model):
 
     def predict(self, input_data: ndarray) -> ndarray:
+        # TODO (kuznetsovav) Убрать
         features = self.extract_features(input_data, num_parts=self._timesteps)
         return self._model.predict(features)
 
@@ -33,7 +35,6 @@ class RNNModel(Model):
 
         self._timesteps = self._params['timesteps']
         dropout = self._params['dropout']
-        #add_fourier = self._params['add_fourier']
         layers = self._params['layers']
         layer_types = list(map(lambda x: rnn_types[x], self._params['layer_types']))
         optimizer = optimizer_dict[self._params['optimizer']]
@@ -41,10 +42,7 @@ class RNNModel(Model):
 
         assert len(layers) == len(layer_types)
 
-        #if add_fourier:
-        #    self._timesteps *= 2
-
-        input_tensor = Input(shape=(self._timesteps, 10))
+        input_tensor = Input(shape=(self._timesteps, 22))
         model = Dense(layers[0], activation='tanh')(input_tensor)
         if dropout != 0:
             model = Dropout(dropout)(model)
@@ -54,18 +52,18 @@ class RNNModel(Model):
             rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(model)
             model = Concatenate(axis=-1)([rnn_l, rnn_r])
 
-        model = Flatten()(model)
-        model = Dense(1, activation='relu')(model)
-        if dropout != 0:
-            model = Dropout(dropout)(model)
+        model = LSTM(1, activation='relu')(model)
+        #model = Flatten()(model)
+        #model = Dense(1, activation='relu')(model)
+        #if dropout != 0:
+        #    model = Dropout(dropout)(model)
 
         self._model = KModel(input_tensor, model)
 
         self._model.compile(optimizer=optimizer(**optimizer_params), loss='mae')
 
-    def train(self, train_data: dict, valid_data: dict):
+    def train(self, train: DataGenerator, valid: DataGenerator):
 
-        #add_fourier = self._params['add_fourier']
         batch_size = self._params['batch_size']
         epochs = self._params['epochs']
         train_repetitions = self._params['train_repetitions']
@@ -95,14 +93,11 @@ class RNNModel(Model):
             )
         ]
 
-        train_generator = self._data_generator(train_data, batch_size, self._timesteps)
-        valid_generator = self._data_generator(valid_data, batch_size, self._timesteps)
-
         self._model.fit_generator(
-            train_generator,
+            train.run(batch_size, self._timesteps),
             steps_per_epoch=train_repetitions,
             epochs=epochs,
             callbacks=callback_list,
-            validation_data=valid_generator,
+            validation_data=valid.run(batch_size, self._timesteps),
             validation_steps=valid_repetitions
         )

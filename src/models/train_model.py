@@ -5,6 +5,7 @@ from src.models import Model,\
     DenseModel, RNNModel,\
     ConvolutionRNNModel,\
     Squeeze1DNetModel
+from src.data import DataGenerator
 import pickle
 
 
@@ -90,10 +91,10 @@ class ModelConfigurator(object):
     @classmethod
     def conv_rnn_model(cls, folder):
         params = {
-            'timesteps': 293,
-            'filters': (64, 128),
-            'kernels': (3, 3),
-            'conv_regularizers_params': 0.01,
+            'timesteps': -1,
+            'filters': (128, 256, 512),
+            'kernels': (150, 5, 5),
+            'conv_regularizers_params': 0,
             'conv_regularizers': 'l2',
             'rnn_layers': (128, 256),
             'rnn_types': ('LSTM', 'LSTM'),
@@ -116,13 +117,9 @@ if __name__ == "__main__":
     TRAIN_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/train.pkl"
     VALID_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/validation.pkl"
 
-    print("Loading data...")
-    with open(TRAIN_DATA, 'rb') as f:
-        train_data = pickle.load(f)
-
-    with open(VALID_DATA, 'rb') as f:
-        valid_data = pickle.load(f)
-    print("Data was loaded")
+    train_generator = DataGenerator(TRAIN_DATA)
+    valid_generator = DataGenerator(VALID_DATA)
 
     model, name, params = ModelConfigurator.conv_rnn_model(MODELS_FOLDER)
-    model.train(train_data, valid_data)
+    # TODO (kuznetsovav) Разнести параметры конфигурации и обучения по разным методам
+    model.train(train_generator, valid_generator)

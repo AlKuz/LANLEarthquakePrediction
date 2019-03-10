@@ -18,7 +18,7 @@ if __name__ == "__main__":
     RESULT_FILE_PATH = "/home/alexander/Projects/LANLEarthquakePrediction/reports"
     MODELS_PATH = "/home/alexander/Projects/LANLEarthquakePrediction/models"
 
-    MODEL_NAME = "rnn_model_v3"
+    MODEL_NAME = "conv_rnn_model_v2"
 
     model = load_model(os.path.join(MODELS_PATH, MODEL_NAME + ".hdf5"))
     with open(os.path.join(MODELS_PATH, MODEL_NAME + ".json"), 'r') as file:
@@ -34,8 +34,7 @@ if __name__ == "__main__":
 
     i = 0
     for name, data in test_data:
-        timesteps = model_settings['timesteps']
-        data_to_predict = Model.extract_features(np.transpose(data), timesteps, as_filters=True, add_fourier=True)
+        data_to_predict = np.expand_dims(data, axis=0)
         result = model.predict(data_to_predict)[0, 0]
         with open(RESULT_FILE, 'a') as file:
             file.write("{},{}\n".format(name, result))

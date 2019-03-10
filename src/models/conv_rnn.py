@@ -9,6 +9,7 @@ from keras.regularizers import l1, l2, l1_l2
 from numpy import ndarray, expand_dims
 
 from src.models.model import Model
+from src.data import DataGenerator
 
 
 class ConvolutionRNNModel(Model):
@@ -50,26 +51,33 @@ class ConvolutionRNNModel(Model):
         optimizer = optimizer_dict[self._params['optimizer']]
         optimizer_params = self._params['optimizer_params']
 
-        input_tensor = Input(shape=(timesteps, 20))
+        if timesteps == -1:
+            input_tensor = Input(shape=(150000, 1))
+        else:
+            input_tensor = Input(shape=(timesteps, 22))
         model = input_tensor
 
         for filter, kernel in zip(filters, kernels):
-            model = Conv1D(filter, kernel, strides=kernel, padding='valid', activation='relu',
-                           kernel_regularizer=conv_regularizers(conv_regularizers_params))(model)
+            if conv_regularizers_params != 0:
+                model = Conv1D(filter, kernel, strides=kernel, padding='valid', activation='relu',
+                               kernel_regularizer=conv_regularizers(conv_regularizers_params))(model)
+            else:
+                model = Conv1D(filter, kernel, strides=kernel, padding='valid', activation='relu')(model)
 
         for layer, layer_type in zip(rnn_layers, rnn_layer_types):
             rnn_l = layer_type(layer, return_sequences=True)(model)
             rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(model)
             model = Concatenate(axis=-1)([rnn_l, rnn_r])
 
-        model = Flatten()(model)
-        model = Dense(1, activation='relu')(model)
+        #model = Flatten()(model)
+        #model = Dense(1, activation='relu')(model)
+        model = LSTM(1, activation='relu')(model)
 
         self._model = KModel(input_tensor, model)
 
         self._model.compile(optimizer=optimizer(**optimizer_params), loss='mae')
 
-    def train(self, train_data: dict, valid_data: dict):
+    def train(self, train: DataGenerator, valid: DataGenerator):
 
         timesteps = self._params['timesteps']
         batch_size = self._params['batch_size']
@@ -101,14 +109,11 @@ class ConvolutionRNNModel(Model):
             )
         ]
 
-        train_generator = self._data_generator(train_data, batch_size, timesteps)
-        valid_generator = self._data_generator(valid_data, batch_size, timesteps)
-
         self._model.fit_generator(
-            train_generator,
+            train.run(batch_size, timesteps),
             steps_per_epoch=train_repetitions,
             epochs=epochs,
             callbacks=callback_list,
-            validation_data=valid_generator,
+            validation_data=valid.run(batch_size, timesteps),
             validation_steps=valid_repetitions
         )
