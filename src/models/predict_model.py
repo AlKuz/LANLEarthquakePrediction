@@ -14,11 +14,11 @@ def load_data(path, names):
 
 
 if __name__ == "__main__":
-    TEST_DATA_PATH = "/home/alexander/Projects/LANLEarthquakePrediction/data/raw/test"
-    RESULT_FILE_PATH = "/home/alexander/Projects/LANLEarthquakePrediction/reports"
-    MODELS_PATH = "/home/alexander/Projects/LANLEarthquakePrediction/models"
+    TEST_DATA_PATH = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/data/raw/test"
+    RESULT_FILE_PATH = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/reports"
+    MODELS_PATH = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/models"
 
-    MODEL_NAME = "conv_rnn_model_v2"
+    MODEL_NAME = "conv_rnn_model_v4"
 
     model = load_model(os.path.join(MODELS_PATH, MODEL_NAME + ".hdf5"))
     with open(os.path.join(MODELS_PATH, MODEL_NAME + ".json"), 'r') as file:

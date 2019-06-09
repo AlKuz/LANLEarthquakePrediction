@@ -69,9 +69,8 @@ class ConvolutionRNNModel(Model):
             rnn_r = layer_type(layer, return_sequences=True, go_backwards=True)(model)
             model = Concatenate(axis=-1)([rnn_l, rnn_r])
 
-        #model = Flatten()(model)
-        #model = Dense(1, activation='relu')(model)
-        model = LSTM(1, activation='relu')(model)
+        model = Flatten()(model)
+        model = Dense(1, activation='relu')(model)
 
         self._model = KModel(input_tensor, model)
 

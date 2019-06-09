@@ -68,7 +68,7 @@ class ModelConfigurator(object):
             'reduce_factor': 0.8,
             'epochs_to_reduce': 4
         }
-        name = 'rnn_model_v3'
+        name = 'rnn_model_v4'
         return RNNModel(params, folder, name), name, params
 
     @classmethod
@@ -92,30 +92,30 @@ class ModelConfigurator(object):
     def conv_rnn_model(cls, folder):
         params = {
             'timesteps': -1,
-            'filters': (128, 256, 512),
-            'kernels': (150, 5, 5),
-            'conv_regularizers_params': 0,
+            'filters': (128, 64, 32, 16),
+            'kernels': (50, 10, 3, 3),
+            'conv_regularizers_params': 0.02,
             'conv_regularizers': 'l2',
-            'rnn_layers': (128, 256),
+            'rnn_layers': (64, 128),
             'rnn_types': ('LSTM', 'LSTM'),
             'optimizer': 'Adam',
             'optimizer_params': {'lr': 0.001},
-            'batch_size': 128,
+            'batch_size': 64,
             'epochs': 1000,
-            'train_repetitions': 200,
+            'train_repetitions': 100,
             'valid_repetitions': 10,
-            'early_stop': 16,
+            'early_stop': 50,
             'reduce_factor': 0.8,
-            'epochs_to_reduce': 4
+            'epochs_to_reduce': 10
         }
-        name = 'conv_rnn_model_v2'
+        name = 'conv_rnn_model_v4'
         return ConvolutionRNNModel(params, folder, name), name, params
 
 
 if __name__ == "__main__":
-    MODELS_FOLDER = "/home/alexander/Projects/LANLEarthquakePrediction/models/"
-    TRAIN_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/train.pkl"
-    VALID_DATA = "/home/alexander/Projects/LANLEarthquakePrediction/data/processed/validation.pkl"
+    MODELS_FOLDER = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/models/"
+    TRAIN_DATA = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/data/processed/train.pkl"
+    VALID_DATA = "/home/alexander/Projects/Kaggle/LANLEarthquakePrediction/data/processed/validation.pkl"
 
     train_generator = DataGenerator(TRAIN_DATA)
     valid_generator = DataGenerator(VALID_DATA)
